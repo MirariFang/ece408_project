@@ -43,7 +43,7 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
 #define x4d(i3, i2, i1, i0) x[(i3) * (C * H * W) + (i2) * (H * W) + (i1) * (W) + i0]
 #define k4d(i3, i2, i1, i0) k[(i3) * (C * K * K) + (i2) * (K * K) + (i1) * (K) + i0]
 
-if(m < H_out){
+if(h < H_out){
     for (int w = 0; w < W_out; w++){
         y[b][m][h][w] = 0;
         for (int c = 0; c < C; c++)
