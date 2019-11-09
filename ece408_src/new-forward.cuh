@@ -46,38 +46,38 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
 
     __shared__ float subTile[TILE_WIDTH][TILE_WIDTH][TILE_WIDTH];
 
-    if(m < M && h < H_out && w < W_out)
-    {
-        int currM = blockIdx.x * blockDim.x;
-        int currH = blockIdx.y * blockDim.y;
-        int currW = blockIdx.z * blockDim.z;
-        int nextM = (blockIdx.x + 1) * blockDim.x;
-        int nextH = (blockIdx.y + 1) * blockDim.y;
-        int nextW = (blockIdx.z + 1) * blockDim.z;
+    int currM = blockIdx.x * blockDim.x;
+    int currH = blockIdx.y * blockDim.y;
+    int currW = blockIdx.z * blockDim.z;
+    int nextM = (blockIdx.x + 1) * blockDim.x;
+    int nextH = (blockIdx.y + 1) * blockDim.y;
+    int nextW = (blockIdx.z + 1) * blockDim.z;
 
-        for (int b = 0; b < B; b++)
+    for (int b = 0; b < B; b++)
+    {
+        y4d(b,m,h,w) = 0;
+        if (m < M && h < H && w < W)
+            subTile[t1][t2][t3] = x4d(b, m, h, w);
+        else
+            subTile[t1][t2][t3] = 0;
+        __syncthreads();
+        for (int c = 0; c < C; c++)
         {
-            y4d(b,m,h,w) = 0;
-            if (m < M && h < H && w < W)
-                subTile[t1][t2][t3] = x4d(b, m, h, w);
-            else
-                subTile[t1][t2][t3] = 0;
-            __syncthreads();
-            for (int c = 0; c < C; c++)
+            for (int p = 0; p < K; p++)
             {
-                for (int p = 0; p < K; p++)
+                for (int q = 0; q < K; q++)
                 {
-                    for (int q = 0; q < K; q++)
+                    if (m < M && h < H_out && w < W_out)
                     {
                         if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
                             y4d(b, m, h, w) += subTile[c - currM][t2 + p][t3 + q] * k4d(m, c, p, q);
                         else
-                            y4d(b,m,h,w) += x4d(b,c,(h+p),(w+q)) * k4d(m,c,p,q);
+                            y4d(b, m, h, w) += x4d(b, c, (h + p), (w + q)) * k4d(m, c, p, q);
                     }
                 }
             }
-            __syncthreads();
         }
+        __syncthreads();
     }
     
 
