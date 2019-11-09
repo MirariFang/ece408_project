@@ -67,7 +67,7 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
                     for (int q = 0; q < K; q++)
                     {
                         if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
-                            y4d(b, m, h, w) += subTile[b][c][h + p][w + q] * k4d(m, c, p, q);
+                            y4d(b, m, h, w) += subTile[c][h + p][w + q] * k4d(m, c, p, q);
                         else
                             y4d(b,m,h,w) += x4d(b,c,(h+p),(w+q)) * k4d(m,c,p,q);
                     }
