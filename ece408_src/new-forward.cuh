@@ -18,16 +18,15 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
     We have some nice #defs for you below to simplify indexing. Feel free to use them, or create your own.
     */
     
-    
     int b1 = blockIdx.x;
     int b2 = blockIdx.y;
     int b3 = blockIdx.z;
     int t1 = threadIdx.x;
     int t2 = threadIdx.y;
     int t3 = threadIdx.z;
-    int b = b1 * TILE_WIDTH + t1;
-    int m = b2 * TILE_WIDTH + t2;
-    int h = b3 * TILE_WIDTH + t3;
+    int m = b1 * TILE_WIDTH + t1;
+    int h = b2 * TILE_WIDTH + t2;
+    int w = b3 * TILE_WIDTH + t3;
 
     const int H_out = H - K + 1;
     const int W_out = W - K + 1;
@@ -42,8 +41,24 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
     #define x4d(i3, i2, i1, i0) x[(i3) * (C * H * W) + (i2) * (H * W) + (i1) * (W) + i0]
     #define k4d(i3, i2, i1, i0) k[(i3) * (C * K * K) + (i2) * (K * K) + (i1) * (K) + i0]
 
-    if(h < H_out){
-        for (int w = 0; w < W_out; w++){
+    __shared__ float subTile[B][TILE_WIDTH][TILE_WIDTH][TILE_WIDTH];
+    if (m < M && h < H && w < W)
+    {
+        for (int b = 0; b < B; b++)
+            subTile[b][t1][t2][t3] = x4d(b, m, h, w);
+    }
+
+    if(h < H_out && w < W_out)
+    {
+        int currM = blockIdx.x * blockDim.x;
+        int currH = blockIdx.y * blockDim.y;
+        int currW = blockIdx.z * blockDim.z;
+        int nextM = (blockIdx.x + 1) * blockDim.x;
+        int nextH = (blockIdx.y + 1) * blockDim.y;
+        int nextW = (blockIdx.z + 1) * blockDim.z;
+
+        for (int b = 0; b < B; b++)
+        {
             y4d(b,m,h,w) = 0;
             for (int c = 0; c < C; c++)
             {
@@ -51,7 +66,10 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
                 {
                     for (int q = 0; q < K; q++)
                     {
-                        y4d(b,m,h,w) += x4d(b,c,(h+p),(w+q)) * k4d(m,c,p,q);
+                        if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
+                            y4d(b, m, h, w) += subTile[b][c][h + p][w + q] * k4d(m, c, p, q);
+                        else
+                            y4d(b,m,h,w) += x4d(b,c,(h+p),(w+q)) * k4d(m,c,p,q);
                     }
                 }
             }
