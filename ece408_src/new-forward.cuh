@@ -44,14 +44,7 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
     #define x4d(i3, i2, i1, i0) x[(i3) * (C * H * W) + (i2) * (H * W) + (i1) * (W) + i0]
     #define k4d(i3, i2, i1, i0) k[(i3) * (C * K * K) + (i2) * (K * K) + (i1) * (K) + i0]
 
-    __shared__ float subTile[B][TILE_WIDTH][TILE_WIDTH][TILE_WIDTH];
-    if (m < M && h < H && w < W)
-    {
-        for (int b = 0; b < B; b++)
-            subTile[b][t1][t2][t3] = x4d(b, m, h, w);
-    }
-
-    __syncthreads();
+    __shared__ float subTile[TILE_WIDTH][TILE_WIDTH][TILE_WIDTH];
 
     if(h < H_out && w < W_out)
     {
@@ -65,6 +58,8 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
         for (int b = 0; b < B; b++)
         {
             y4d(b,m,h,w) = 0;
+            subTile[t1][t2][t3] = x4d(b, m, h, w);
+            __syncthreads();
             for (int c = 0; c < C; c++)
             {
                 for (int p = 0; p < K; p++)
@@ -116,9 +111,9 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     printf("W: %d\n", W);
     printf("K: %d\n", K);
     // Set the kernel dimensions
-    dim3 gridDim(ceil(float(B)/float(TILE_WIDTH)),
-                 ceil(float(M)/float(TILE_WIDTH)),
-                 ceil(float(H)/float(TILE_WIDTH)));
+    dim3 gridDim(ceil(float(M)/float(TILE_WIDTH)),
+                 ceil(float(H)/float(TILE_WIDTH)),
+                 ceil(float(W)/float(TILE_WIDTH)));
     dim3 blockDim(TILE_WIDTH,TILE_WIDTH,TILE_WIDTH);
 
     // Call the kernel
