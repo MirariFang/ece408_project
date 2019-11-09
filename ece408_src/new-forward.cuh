@@ -55,12 +55,13 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
 
     for (int b = 0; b < B; b++)
     {
-        y4d(b,m,h,w) = 0;
         if (m < M && h < H && w < W)
             subTile[t1][t2][t3] = x4d(b, m, h, w);
         else
             subTile[t1][t2][t3] = 0;
         __syncthreads();
+        if (m < M && h < H_out && m < M_out)
+            y4d(b, m, h, w) = 0;
         for (int c = 0; c < C; c++)
         {
             for (int p = 0; p < K; p++)
