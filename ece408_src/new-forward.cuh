@@ -46,7 +46,7 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
 
     __shared__ float subTile[TILE_WIDTH][TILE_WIDTH][TILE_WIDTH];
 
-    if(h < H_out && w < W_out)
+    if(m < M && h < H_out && w < W_out)
     {
         int currM = blockIdx.x * blockDim.x;
         int currH = blockIdx.y * blockDim.y;
