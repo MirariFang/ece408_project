@@ -9,9 +9,9 @@ namespace op
 {
 const int TILE_WIDTH = 8;
 
-//__constant__ float MASK[]
+__constant__ float MASK[24][12][5][5];
 
-__global__ void forward_kernel(float *y, const float *x, const float *k, const int B, const int M, const int C, const int H, const int W, const int K)
+__global__ void forward_kernel(float *y, const float *x, const int B, const int M, const int C, const int H, const int W, const int K)
 {
 
     /*
@@ -71,9 +71,9 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
                     if (m < M && h < H_out && w < W_out)
                     {
                         if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
-                            y4d(b, m, h, w) += subTile[c - currM][t2 + p][t3 + q] * k4d(m, c, p, q);
+                            y4d(b, m, h, w) += subTile[c - currM][t2 + p][t3 + q] * MASK[m][c][p][q];
                         else
-                            y4d(b, m, h, w) += x4d(b, c, (h + p), (w + q)) * k4d(m, c, p, q);
+                            y4d(b, m, h, w) += x4d(b, c, (h + p), (w + q)) * MASK[m][c][p][q];
                     }
                 }
             }
@@ -121,8 +121,10 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
                  ceil(float(W)/float(TILE_WIDTH)));
     dim3 blockDim(TILE_WIDTH,TILE_WIDTH,TILE_WIDTH);
 
+    cudaMemcpyToSymbol(MASK, w.dptr_, 24 * 12 * 5 * 5 * sizeof(float));
+
     // Call the kernel
-    forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,w.dptr_, B,M,C,H,W,K);
+    forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,B,M,C,H,W,K);
 
     // Use MSHADOW_CUDA_CALL to check for CUDA runtime errors.
     MSHADOW_CUDA_CALL(cudaDeviceSynchronize());
