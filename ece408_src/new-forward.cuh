@@ -7,7 +7,7 @@ namespace mxnet
 {
 namespace op
 {
-const int TILE_WIDTH = 4;
+const int TILE_WIDTH = 8;
 
 //__constant__ float MASK[]
 
