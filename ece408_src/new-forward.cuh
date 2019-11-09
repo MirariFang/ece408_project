@@ -8,6 +8,9 @@ namespace mxnet
 namespace op
 {
 const int TILE_WIDTH = 4;
+
+//__constant__ float MASK[]
+
 __global__ void forward_kernel(float *y, const float *x, const float *k, const int B, const int M, const int C, const int H, const int W, const int K)
 {
 
@@ -47,6 +50,8 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
         for (int b = 0; b < B; b++)
             subTile[b][t1][t2][t3] = x4d(b, m, h, w);
     }
+
+    __syncthreads();
 
     if(h < H_out && w < W_out)
     {
@@ -104,7 +109,12 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     const int H = x.shape_[2];
     const int W = x.shape_[3];
     const int K = w.shape_[3];
-
+    printf("B: %d\n", B);
+    printf("M: %d\n", M);
+    printf("C: %d\n", C);
+    printf("H: %d\n", H);
+    printf("W: %d\n", W);
+    printf("K: %d\n", K);
     // Set the kernel dimensions
     dim3 gridDim(ceil(float(B)/float(TILE_WIDTH)),
                  ceil(float(M)/float(TILE_WIDTH)),
