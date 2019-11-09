@@ -121,8 +121,8 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
                  ceil(float(W)/float(TILE_WIDTH)));
     dim3 blockDim(TILE_WIDTH,TILE_WIDTH,TILE_WIDTH);
 
-    float *filter = (float *)malloc(24 * 12 * 5 * 5 * sizeof(float));
-    cudaMemcpy(filter, w.dptr_, 24 * 12 * 5 * 5 * sizeof(float), cudaMemcpyDeviceToHost);
+    float *filter = (float *)calloc(0, M * C * K * K * sizeof(float));
+    cudaMemcpy(filter, w.dptr_, M * C * K * K * sizeof(float), cudaMemcpyDeviceToHost);
     cudaMemcpyToSymbol(MASK, filter, 24 * 12 * 5 * 5 * sizeof(float));
 
     // Call the kernel
