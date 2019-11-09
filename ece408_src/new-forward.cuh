@@ -60,7 +60,7 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
         else
             subTile[t1][t2][t3] = 0;
         __syncthreads();
-        if (m < M && h < H_out && m < M_out)
+        if (m < M && h < H_out && w < W_out)
             y4d(b, m, h, w) = 0;
         for (int c = 0; c < C; c++)
         {
