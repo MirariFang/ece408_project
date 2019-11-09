@@ -121,14 +121,16 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
                  ceil(float(W)/float(TILE_WIDTH)));
     dim3 blockDim(TILE_WIDTH,TILE_WIDTH,TILE_WIDTH);
 
-    cudaMemcpyToSymbol(MASK, w.dptr_, 24 * 12 * 5 * 5 * sizeof(float));
+    float *filter = (float *)malloc(24 * 12 * 5 * 5 * sizeof(float));
+    cudaMemcpy(filter, w.dptr_, 24 * 12 * 5 * 5 * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpyToSymbol(MASK, filter, 24 * 12 * 5 * 5 * sizeof(float));
 
     // Call the kernel
     forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,B,M,C,H,W,K);
 
     // Use MSHADOW_CUDA_CALL to check for CUDA runtime errors.
     MSHADOW_CUDA_CALL(cudaDeviceSynchronize());
-
+    free(filter);
 }
 
 /* 
