@@ -121,7 +121,7 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
                  ceil(float(W)/float(TILE_WIDTH)));
     dim3 blockDim(TILE_WIDTH,TILE_WIDTH,TILE_WIDTH);
 
-    cudaMemcpyToSymbol(MASK, filter, M * C * K * K * sizeof(float));
+    cudaMemcpyToSymbol(MASK, w.dptr_, M * C * K * K * sizeof(float));
 
     // Call the kernel
     forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,B,M,C,H,W,K);
