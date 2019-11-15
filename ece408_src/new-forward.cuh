@@ -11,7 +11,7 @@ const int TILE_WIDTH = 8;
 
 __constant__ float MASK[7200];
 
-__global__ void forward_kernel(float *y, const float *x, const int B, const int M, const int C, const int H, const int W, const int K)
+__global__ void forward_kernel(float * __restrict__ y, const float __restrict__ *x, const int B, const int M, const int C, const int H, const int W, const int K)
 {
 
     /*
@@ -53,29 +53,158 @@ __global__ void forward_kernel(float *y, const float *x, const int B, const int 
     int nextH = (blockIdx.y + 1) * blockDim.y;
     int nextW = (blockIdx.z + 1) * blockDim.z;
 
+    int mhw = m * (H_out * W_out) + h * (W_out) + w;
     for (int b = 0; b < B; b++)
     {
+        int bmhw = b * (M * H_out * W_out) + mhw;
         if (m < M && h < H && w < W)
             subTile[t1][t2][t3] = x4d(b, m, h, w);
         else
             subTile[t1][t2][t3] = 0;
         __syncthreads();
         if (m < M && h < H_out && w < W_out)
-            y4d(b, m, h, w) = 0;
+            y[bmhw] = 0;
         for (int c = 0; c < C; c++)
         {
-            for (int p = 0; p < K; p++)
+            // for (int p = 0; p < K; p++)
+            // {
+            //     for (int q = 0; q < K; q++)
+            //     {
+            //         if (m < M && h < H_out && w < W_out)
+            //         {
+            //             if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
+            //                 y[bmhw] += subTile[c - currM][t2 + p][t3 + q] * K4d(m, c, p, q);
+            //             else
+            //                 y[bmhw] += x4d(b, c, (h + p), (w + q)) * K4d(m, c, p, q);
+            //         }
+            //     }
+            // }
+            if (m < M && h < H_out && w < W_out)
             {
-                for (int q = 0; q < K; q++)
-                {
-                    if (m < M && h < H_out && w < W_out)
-                    {
-                        if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
-                            y4d(b, m, h, w) += subTile[c - currM][t2 + p][t3 + q] * K4d(m, c, p, q);
-                        else
-                            y4d(b, m, h, w) += x4d(b, c, (h + p), (w + q)) * K4d(m, c, p, q);
-                    }
-                }
+                if (c >= currM && c < nextM && (h + 0) >= currH && (h + 0) < nextH && (w + 0) >= currW && (w + 0) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 0][t3 + 0] * K4d(m, c, 0, 0);
+                else
+                    y[bmhw] += x4d(b, c, (h + 0), (w + 0)) * K4d(m, c, 0, 0);
+
+                if (c >= currM && c < nextM && (h + 0) >= currH && (h + 0) < nextH && (w + 1) >= currW && (w + 1) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 0][t3 + 1] * K4d(m, c, 0, 1);
+                else
+                    y[bmhw] += x4d(b, c, (h + 0), (w + 1)) * K4d(m, c, 0, 1);
+
+                if (c >= currM && c < nextM && (h + 0) >= currH && (h + 0) < nextH && (w + 2) >= currW && (w + 2) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 0][t3 + 2] * K4d(m, c, 0, 2);
+                else
+                    y[bmhw] += x4d(b, c, (h + 0), (w + 2)) * K4d(m, c, 0, 2);
+
+                if (c >= currM && c < nextM && (h + 0) >= currH && (h + 0) < nextH && (w + 3) >= currW && (w + 3) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 0][t3 + 3] * K4d(m, c, 0, 3);
+                else
+                    y[bmhw] += x4d(b, c, (h + 0), (w + 3)) * K4d(m, c, 0, 3);
+
+                if (c >= currM && c < nextM && (h + 0) >= currH && (h + 0) < nextH && (w + 4) >= currW && (w + 4) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 0][t3 + 4] * K4d(m, c, 0, 4);
+                else
+                    y[bmhw] += x4d(b, c, (h + 0), (w + 4)) * K4d(m, c, 0, 4);
+
+                if (c >= currM && c < nextM && (h + 1) >= currH && (h + 1) < nextH && (w + 0) >= currW && (w + 0) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 1][t3 + 0] * K4d(m, c, 1, 0);
+                else
+                    y[bmhw] += x4d(b, c, (h + 1), (w + 0)) * K4d(m, c, 1, 0);
+
+                if (c >= currM && c < nextM && (h + 1) >= currH && (h + 1) < nextH && (w + 1) >= currW && (w + 1) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 1][t3 + 1] * K4d(m, c, 1, 1);
+                else
+                    y[bmhw] += x4d(b, c, (h + 1), (w + 1)) * K4d(m, c, 1, 1);
+
+                if (c >= currM && c < nextM && (h + 1) >= currH && (h + 1) < nextH && (w + 2) >= currW && (w + 2) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 1][t3 + 2] * K4d(m, c, 1, 2);
+                else
+                    y[bmhw] += x4d(b, c, (h + 1), (w + 2)) * K4d(m, c, 1, 2);
+
+                if (c >= currM && c < nextM && (h + 1) >= currH && (h + 1) < nextH && (w + 3) >= currW && (w + 3) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 1][t3 + 3] * K4d(m, c, 1, 3);
+                else
+                    y[bmhw] += x4d(b, c, (h + 1), (w + 3)) * K4d(m, c, 1, 3);
+
+                if (c >= currM && c < nextM && (h + 1) >= currH && (h + 1) < nextH && (w + 4) >= currW && (w + 4) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 1][t3 + 4] * K4d(m, c, 1, 4);
+                else
+                    y[bmhw] += x4d(b, c, (h + 1), (w + 4)) * K4d(m, c, 1, 4);
+
+                if (c >= currM && c < nextM && (h + 2) >= currH && (h + 2) < nextH && (w + 0) >= currW && (w + 0) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 2][t3 + 0] * K4d(m, c, 2, 0);
+                else
+                    y[bmhw] += x4d(b, c, (h + 2), (w + 0)) * K4d(m, c, 2, 0);
+
+                if (c >= currM && c < nextM && (h + 2) >= currH && (h + 2) < nextH && (w + 1) >= currW && (w + 1) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 2][t3 + 1] * K4d(m, c, 2, 1);
+                else
+                    y[bmhw] += x4d(b, c, (h + 2), (w + 1)) * K4d(m, c, 2, 1);
+
+                if (c >= currM && c < nextM && (h + 2) >= currH && (h + 2) < nextH && (w + 2) >= currW && (w + 2) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 2][t3 + 2] * K4d(m, c, 2, 2);
+                else
+                    y[bmhw] += x4d(b, c, (h + 2), (w + 2)) * K4d(m, c, 2, 2);
+
+                if (c >= currM && c < nextM && (h + 2) >= currH && (h + 2) < nextH && (w + 3) >= currW && (w + 3) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 2][t3 + 3] * K4d(m, c, 2, 3);
+                else
+                    y[bmhw] += x4d(b, c, (h + 2), (w + 3)) * K4d(m, c, 2, 3);
+
+                if (c >= currM && c < nextM && (h + 2) >= currH && (h + 2) < nextH && (w + 4) >= currW && (w + 4) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 2][t3 + 4] * K4d(m, c, 2, 4);
+                else
+                    y[bmhw] += x4d(b, c, (h + 2), (w + 4)) * K4d(m, c, 2, 4);
+
+                if (c >= currM && c < nextM && (h + 3) >= currH && (h + 3) < nextH && (w + 0) >= currW && (w + 0) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 3][t3 + 0] * K4d(m, c, 3, 0);
+                else
+                    y[bmhw] += x4d(b, c, (h + 3), (w + 0)) * K4d(m, c, 3, 0);
+
+                if (c >= currM && c < nextM && (h + 3) >= currH && (h + 3) < nextH && (w + 1) >= currW && (w + 1) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 3][t3 + 1] * K4d(m, c, 3, 1);
+                else
+                    y[bmhw] += x4d(b, c, (h + 3), (w + 1)) * K4d(m, c, 3, 1);
+
+                if (c >= currM && c < nextM && (h + 3) >= currH && (h + 3) < nextH && (w + 2) >= currW && (w + 2) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 3][t3 + 2] * K4d(m, c, 3, 2);
+                else
+                    y[bmhw] += x4d(b, c, (h + 3), (w + 2)) * K4d(m, c, 3, 2);
+
+                if (c >= currM && c < nextM && (h + 3) >= currH && (h + 3) < nextH && (w + 3) >= currW && (w + 3) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 3][t3 + 3] * K4d(m, c, 3, 3);
+                else
+                    y[bmhw] += x4d(b, c, (h + 3), (w + 3)) * K4d(m, c, 3, 3);
+
+                if (c >= currM && c < nextM && (h + 3) >= currH && (h + 3) < nextH && (w + 4) >= currW && (w + 4) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 3][t3 + 4] * K4d(m, c, 3, 4);
+                else
+                    y[bmhw] += x4d(b, c, (h + 3), (w + 4)) * K4d(m, c, 3, 4);
+
+                if (c >= currM && c < nextM && (h + 4) >= currH && (h + 4) < nextH && (w + 0) >= currW && (w + 0) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 4][t3 + 0] * K4d(m, c, 4, 0);
+                else
+                    y[bmhw] += x4d(b, c, (h + 4), (w + 0)) * K4d(m, c, 4, 0);
+
+                if (c >= currM && c < nextM && (h + 4) >= currH && (h + 4) < nextH && (w + 1) >= currW && (w + 1) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 4][t3 + 1] * K4d(m, c, 4, 1);
+                else
+                    y[bmhw] += x4d(b, c, (h + 4), (w + 1)) * K4d(m, c, 4, 1);
+
+                if (c >= currM && c < nextM && (h + 4) >= currH && (h + 4) < nextH && (w + 2) >= currW && (w + 2) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 4][t3 + 2] * K4d(m, c, 4, 2);
+                else
+                    y[bmhw] += x4d(b, c, (h + 4), (w + 2)) * K4d(m, c, 4, 2);
+
+                if (c >= currM && c < nextM && (h + 4) >= currH && (h + 4) < nextH && (w + 3) >= currW && (w + 3) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 4][t3 + 3] * K4d(m, c, 4, 3);
+                else
+                    y[bmhw] += x4d(b, c, (h + 4), (w + 3)) * K4d(m, c, 4, 3);
+
+                if (c >= currM && c < nextM && (h + 4) >= currH && (h + 4) < nextH && (w + 4) >= currW && (w + 4) < nextW)
+                    y[bmhw] += subTile[c - currM][t2 + 4][t3 + 4] * K4d(m, c, 4, 4);
+                else
+                    y[bmhw] += x4d(b, c, (h + 4), (w + 4)) * K4d(m, c, 4, 4);
             }
         }
         __syncthreads();
