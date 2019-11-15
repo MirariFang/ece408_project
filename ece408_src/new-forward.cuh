@@ -11,7 +11,7 @@ const int TILE_WIDTH = 8;
 
 __constant__ float MASK[7200];
 
-__global__ void forward_kernel(float * __restrict__ y, const float __restrict__ *x, const int B, const int M, const int C, const int H, const int W, const int K)
+__global__ void forward_kernel(float * __restrict__ y, const float * __restrict__ x, const int B, const int M, const int C, const int H, const int W, const int K)
 {
 
     /*
