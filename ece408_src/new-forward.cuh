@@ -53,10 +53,10 @@ __global__ void forward_kernel(float * __restrict__ y, const float * __restrict_
     int nextH = (blockIdx.y + 1) * blockDim.y;
     int nextW = (blockIdx.z + 1) * blockDim.z;
 
-    int mhw = m * (H_out * W_out) + h * (W_out) + w;
+    int bmhw = m * (H_out * W_out) + h * (W_out) + w;
+    int mHoutWout = M * H_out * W_out;
     for (int b = 0; b < B; b++)
     {
-        int bmhw = b * (M * H_out * W_out) + mhw;
         if (m < M && h < H && w < W)
             subTile[t1][t2][t3] = x4d(b, m, h, w);
         else
@@ -66,19 +66,6 @@ __global__ void forward_kernel(float * __restrict__ y, const float * __restrict_
             y[bmhw] = 0;
         for (int c = 0; c < C; c++)
         {
-            // for (int p = 0; p < K; p++)
-            // {
-            //     for (int q = 0; q < K; q++)
-            //     {
-            //         if (m < M && h < H_out && w < W_out)
-            //         {
-            //             if (c >= currM && c < nextM && (h + p) >= currH && (h + p) < nextH && (w + q) >= currW && (w + q) < nextW)
-            //                 y[bmhw] += subTile[c - currM][t2 + p][t3 + q] * K4d(m, c, p, q);
-            //             else
-            //                 y[bmhw] += x4d(b, c, (h + p), (w + q)) * K4d(m, c, p, q);
-            //         }
-            //     }
-            // }
             if (m < M && h < H_out && w < W_out)
             {
                 if (c >= currM && c < nextM && (h + 0) >= currH && (h + 0) < nextH && (w + 0) >= currW && (w + 0) < nextW)
@@ -207,6 +194,7 @@ __global__ void forward_kernel(float * __restrict__ y, const float * __restrict_
                     y[bmhw] += x4d(b, c, (h + 4), (w + 4)) * K4d(m, c, 4, 4);
             }
         }
+        bmhw += mHoutWout;
         __syncthreads();
     }
     
