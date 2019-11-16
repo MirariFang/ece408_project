@@ -226,12 +226,14 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     const int H = x.shape_[2];
     const int W = x.shape_[3];
     const int K = w.shape_[3];
+    /*
     printf("B: %d\n", B);
     printf("M: %d\n", M);
     printf("C: %d\n", C);
     printf("H: %d\n", H);
     printf("W: %d\n", W);
     printf("K: %d\n", K);
+    */
     // Set the kernel dimensions
     dim3 gridDim(ceil(float(M)/float(TILE_WIDTH)),
                  ceil(float(H)/float(TILE_WIDTH)),
