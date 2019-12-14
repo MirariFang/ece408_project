@@ -81,9 +81,8 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
         for (int q = 0; q < TILE_WIDTH; q++)
         {
             acc += tileMatWUnroll[ty][q] * tileMatXUnroll[q][tx];
-            __syncthreads();
         }
-
+        __syncthreads();
         int Y_b = bz;
         int Y_m = row;
         int Y_h = column / W_out;
