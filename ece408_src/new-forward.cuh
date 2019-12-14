@@ -27,11 +27,11 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
     int tz = threadIdx.z;
     int column = bx * TILE_WIDTH + tx;
     int row = by * TILE_WIDTH + ty;
-    int numMatAColumns = C * K * K;
+    int weightLength = C * K * K;
 
     float acc = 0;
 
-    int numIter = ceil(numMatAColumns / (1.0 * TILE_WIDTH));
+    int numIter = ceil(weightLength / (1.0 * TILE_WIDTH));
 
     const int H_out = H - K + 1;
     const int W_out = W - K + 1;
@@ -55,7 +55,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         int W_h = (tempCol % (K * K)) / K;
         int W_w = (tempCol % (K * K)) % K;
 
-        if (tempCol < numMatAColumns && row < M)
+        if (tempCol < weightLength && row < M)
             tileMatWUnroll[ty][tx] = k4d(W_m, W_c, W_h, W_w);
         else
             tileMatWUnroll[ty][tx] = 0;
@@ -67,7 +67,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         int X_h = column / W_out;
         int X_w = column % W_out;
 
-        if (tempRow < numMatAColumns && column < H_out * W_out)
+        if (tempRow < weightLength && column < H_out * W_out)
         {
             tileMatXUnroll[ty][tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
         }
