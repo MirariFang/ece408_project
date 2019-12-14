@@ -9,7 +9,7 @@ namespace op
 {
 const int TILE_WIDTH = 16;
 
-__global__ void forward_kernel(float *y, const float *x, const float *k, const int B, const int M, const int C, const int H, const int W, const int K)
+__global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ x, const float *__restrict__ k, const int B, const int M, const int C, const int H, const int W, const int K)
 {
 
     /*
@@ -78,11 +78,24 @@ __global__ void forward_kernel(float *y, const float *x, const float *k, const i
 
         __syncthreads();
 
-        for (int q = 0; q < TILE_WIDTH; q++)
-        {
-            acc += tileMatWUnroll[ty][q] * tileMatXUnroll[q][tx];
-            __syncthreads();
-        }
+        acc += tileMatWUnroll[ty][0] * tileMatXUnroll[0][tx];
+        acc += tileMatWUnroll[ty][1] * tileMatXUnroll[1][tx];
+        acc += tileMatWUnroll[ty][2] * tileMatXUnroll[2][tx];
+        acc += tileMatWUnroll[ty][3] * tileMatXUnroll[3][tx];
+        acc += tileMatWUnroll[ty][4] * tileMatXUnroll[4][tx];
+        acc += tileMatWUnroll[ty][5] * tileMatXUnroll[5][tx];
+        acc += tileMatWUnroll[ty][6] * tileMatXUnroll[6][tx];
+        acc += tileMatWUnroll[ty][7] * tileMatXUnroll[7][tx];
+        acc += tileMatWUnroll[ty][8] * tileMatXUnroll[8][tx];
+        acc += tileMatWUnroll[ty][9] * tileMatXUnroll[9][tx];
+        acc += tileMatWUnroll[ty][10] * tileMatXUnroll[10][tx];
+        acc += tileMatWUnroll[ty][11] * tileMatXUnroll[11][tx];
+        acc += tileMatWUnroll[ty][12] * tileMatXUnroll[12][tx];
+        acc += tileMatWUnroll[ty][13] * tileMatXUnroll[13][tx];
+        acc += tileMatWUnroll[ty][14] * tileMatXUnroll[14][tx];
+        acc += tileMatWUnroll[ty][15] * tileMatXUnroll[15][tx];
+        
+        __syncthreads();
 
         int Y_b = bz;
         int Y_m = row;
