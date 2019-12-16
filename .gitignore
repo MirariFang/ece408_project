@@ -1,2 +1,4 @@
 *.pyc
 .vscode
+code_generator.py
+rai_build.yml
