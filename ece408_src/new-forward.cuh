@@ -37,10 +37,11 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
 
     const int H_out = H - K + 1;
     const int W_out = W - K + 1;
+    const int outCol = H_out * W_out;
 
-#define y4d(i3, i2, i1, i0) y[(i3) * (M * H_out * W_out) + (i2) * (H_out * W_out) + (i1) * (W_out) + i0]
+#define y4d(i3, i2, i1, i0) y[(i3) * (M * outCol) + (i2) * (outCol) + (i1) * (W_out) + i0]
 #define x4d(i3, i2, i1, i0) x[(i3) * (C * H * W) + (i2) * (H * W) + (i1) * (W) + i0]
-#define k4d(i3, i2, i1, i0) k[(i3) * (C * K * K) + (i2) * (K * K) + (i1) * (K) + i0]
+#define k4d(i3, i2, i1, i0) k[(i3) * (C * filterSize) + (i2) * (filterSize) + (i1) * (K) + i0]
 
     __shared__ float tileMatWUnroll[TILE_WIDTH][TILE_WIDTH];
     __shared__ float tileMatXUnroll[TILE_WIDTH][TILE_WIDTH];
@@ -69,7 +70,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         int X_h = col / W_out;
         int X_w = col % W_out;
 
-        if (tempRow < weightLength && col < H_out * W_out)
+        if (tempRow < weightLength && col < outCol)
         {
             tileMatXUnroll[ty][tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
         }
@@ -103,7 +104,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         int Y_m = row;
         int Y_h = col / W_out;
         int Y_w = col % W_out;
-        if (row < M && col < W_out * H_out)
+        if (row < M && col < outCol)
         {
             y4d(Y_b, Y_m, Y_h, Y_w) = acc;
         }
