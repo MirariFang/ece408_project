@@ -25,9 +25,11 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
     int tx = threadIdx.x;
     int ty = threadIdx.y;
     int tz = threadIdx.z;
-    int column = bx * TILE_WIDTH + tx;
+    int col = bx * TILE_WIDTH + tx;
     int row = by * TILE_WIDTH + ty;
-    int weightLength = C * K * K;
+
+    const int filterSize = 25; // K * K = 25 (constant)
+    int weightLength = C * filterSize;
 
     float acc = 0;
 
@@ -51,9 +53,9 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         tileMatXUnroll[ty][tx] = 0;
 
         int W_m = row;
-        int W_c = tempCol / (K * K);
-        int W_h = (tempCol % (K * K)) / K;
-        int W_w = (tempCol % (K * K)) % K;
+        int W_c = tempCol / filterSize;
+        int W_h = (tempCol % filterSize) / K;
+        int W_w = (tempCol % filterSize) % K;
 
         if (tempCol < weightLength && row < M)
             tileMatWUnroll[ty][tx] = k4d(W_m, W_c, W_h, W_w);
@@ -61,13 +63,13 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
             tileMatWUnroll[ty][tx] = 0;
 
         int X_b = bz;
-        int X_c = tempRow / (K * K);
-        int X_p = (tempRow % (K * K)) / K;
-        int X_q = (tempRow % (K * K)) % K;
-        int X_h = column / W_out;
-        int X_w = column % W_out;
+        int X_c = tempRow / filterSize;
+        int X_p = (tempRow % filterSize) / K;
+        int X_q = (tempRow % filterSize) % K;
+        int X_h = col / W_out;
+        int X_w = col % W_out;
 
-        if (tempRow < weightLength && column < H_out * W_out)
+        if (tempRow < weightLength && col < H_out * W_out)
         {
             tileMatXUnroll[ty][tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
         }
@@ -99,9 +101,9 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
 
         int Y_b = bz;
         int Y_m = row;
-        int Y_h = column / W_out;
-        int Y_w = column % W_out;
-        if (row < M && column < W_out * H_out)
+        int Y_h = col / W_out;
+        int Y_w = col % W_out;
+        if (row < M && col < W_out * H_out)
         {
             y4d(Y_b, Y_m, Y_h, Y_w) = acc;
         }
@@ -132,14 +134,14 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     const int H = x.shape_[2];
     const int W = x.shape_[3];
     const int K = w.shape_[3];
-    /*
-    printf("B: %d\n", B);
-    printf("M: %d\n", M);
-    printf("C: %d\n", C);
-    printf("H: %d\n", H);
-    printf("W: %d\n", W);
-    printf("K: %d\n", K);
-    */
+
+    // printf("B: %d\n", B);
+    // printf("M: %d\n", M);
+    // printf("C: %d\n", C);
+    // printf("H: %d\n", H);
+    // printf("W: %d\n", W);
+    // printf("K: %d\n", K);
+
     // Set the kernel dimensions
     const int H_out = H - K + 1;
     const int W_out = W - K + 1;
