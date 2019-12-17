@@ -31,7 +31,11 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
     const int filterSize = 25; // K * K = 25 (constant)
     int weightLength = C * filterSize;
 
-    float acc = 0;
+    float acc[4];
+    acc[0] = 0;
+    acc[1] = 0;
+    acc[2] = 0;
+    acc[3] = 0;
 
     int numIter = ceil(weightLength / (1.0 * TILE_WIDTH));
 
@@ -45,114 +49,114 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
 
     __shared__ float tileMatWUnroll[TILE_WIDTH][TILE_WIDTH];
     __shared__ float tileMatXUnroll[TILE_WIDTH][TILE_WIDTH];
-
+    const int incre_col[4] = {0, 32, 0, 32};
+    const int incre_row[4] = {0, 0, 32, 32};
     for (int i = 0; i < numIter; i++)
     {
-        int tempCol = i * TILE_WIDTH + tx;
-        int tempRow = i * TILE_WIDTH + ty;
-
-        int W_m = row;
-        int W_c = tempCol / filterSize;
-        int W_h = (tempCol % filterSize) / K;
-        int W_w = (tempCol % filterSize) % K;
-
-        if (tempCol < weightLength && row < M)
-            tileMatWUnroll[ty][tx] = k4d(W_m, W_c, W_h, W_w);
-        else
-            tileMatWUnroll[ty][tx] = 0;
-
-        int X_b = bz;
-        int X_c = tempRow / filterSize;
-        int X_p = (tempRow % filterSize) / K;
-        int X_q = (tempRow % filterSize) % K;
-        int X_h = col / W_out;
-        int X_w = col % W_out;
-
-        if (tempRow < weightLength && col < outCol)
+        for (int j = 0; j < 4; j++)
         {
-            tileMatXUnroll[ty][tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
+            int tempCol = i * TILE_WIDTH + tx + incre_col[j];
+            int tempRow = i * TILE_WIDTH + ty + incre_row[j];
+            int W_m = row + incre_row[j];
+            int W_c = tempCol / filterSize;
+            int W_h = (tempCol % filterSize) / K;
+            int W_w = (tempCol % filterSize) % K;
+            int X_b = bz;
+            int X_c = tempRow / filterSize;
+            int X_p = (tempRow % filterSize) / K;
+            int X_q = (tempRow % filterSize) % K;
+            int X_h = (col+incre_col[j]) / W_out;
+            int X_w = (col+incre_col[j]) % W_out;
+            if (tempCol < weightLength && (row + incre_row[j]) < M)
+                tileMatWUnroll[ty + incre_row[j]][tx + incre_col[j]] = k4d(W_m, W_c, W_h, W_w);
+            else
+                tileMatWUnroll[ty + incre_row[j]][tx + incre_col[j]] = 0;
+            if (tempRow < weightLength && (col+incre_col[j]) < outCol)
+                tileMatXUnroll[ty + incre_row[j]][tx + incre_col[j]] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
+            else
+                tileMatXUnroll[ty + incre_row[j]][tx + incre_col[j]] = 0;
         }
-        else
-        {
-            tileMatXUnroll[ty][tx] = 0;
-        }
-
-        __syncthreads();
-        
-        acc += tileMatWUnroll[ty][0] * tileMatXUnroll[0][tx];
-        acc += tileMatWUnroll[ty][1] * tileMatXUnroll[1][tx];
-        acc += tileMatWUnroll[ty][2] * tileMatXUnroll[2][tx];
-        acc += tileMatWUnroll[ty][3] * tileMatXUnroll[3][tx];
-        acc += tileMatWUnroll[ty][4] * tileMatXUnroll[4][tx];
-        acc += tileMatWUnroll[ty][5] * tileMatXUnroll[5][tx];
-        acc += tileMatWUnroll[ty][6] * tileMatXUnroll[6][tx];
-        acc += tileMatWUnroll[ty][7] * tileMatXUnroll[7][tx];
-        acc += tileMatWUnroll[ty][8] * tileMatXUnroll[8][tx];
-        acc += tileMatWUnroll[ty][9] * tileMatXUnroll[9][tx];
-        acc += tileMatWUnroll[ty][10] * tileMatXUnroll[10][tx];
-        acc += tileMatWUnroll[ty][11] * tileMatXUnroll[11][tx];
-        acc += tileMatWUnroll[ty][12] * tileMatXUnroll[12][tx];
-        acc += tileMatWUnroll[ty][13] * tileMatXUnroll[13][tx];
-        acc += tileMatWUnroll[ty][14] * tileMatXUnroll[14][tx];
-        acc += tileMatWUnroll[ty][15] * tileMatXUnroll[15][tx];
-        acc += tileMatWUnroll[ty][16] * tileMatXUnroll[16][tx];
-        acc += tileMatWUnroll[ty][17] * tileMatXUnroll[17][tx];
-        acc += tileMatWUnroll[ty][18] * tileMatXUnroll[18][tx];
-        acc += tileMatWUnroll[ty][19] * tileMatXUnroll[19][tx];
-        acc += tileMatWUnroll[ty][20] * tileMatXUnroll[20][tx];
-        acc += tileMatWUnroll[ty][21] * tileMatXUnroll[21][tx];
-        acc += tileMatWUnroll[ty][22] * tileMatXUnroll[22][tx];
-        acc += tileMatWUnroll[ty][23] * tileMatXUnroll[23][tx];
-        acc += tileMatWUnroll[ty][24] * tileMatXUnroll[24][tx];
-        acc += tileMatWUnroll[ty][25] * tileMatXUnroll[25][tx];
-        acc += tileMatWUnroll[ty][26] * tileMatXUnroll[26][tx];
-        acc += tileMatWUnroll[ty][27] * tileMatXUnroll[27][tx];
-        acc += tileMatWUnroll[ty][28] * tileMatXUnroll[28][tx];
-        acc += tileMatWUnroll[ty][29] * tileMatXUnroll[29][tx];
-        acc += tileMatWUnroll[ty][30] * tileMatXUnroll[30][tx];
-        acc += tileMatWUnroll[ty][31] * tileMatXUnroll[31][tx];
-        acc += tileMatWUnroll[ty][32] * tileMatXUnroll[32][tx];
-        acc += tileMatWUnroll[ty][33] * tileMatXUnroll[33][tx];
-        acc += tileMatWUnroll[ty][34] * tileMatXUnroll[34][tx];
-        acc += tileMatWUnroll[ty][35] * tileMatXUnroll[35][tx];
-        acc += tileMatWUnroll[ty][36] * tileMatXUnroll[36][tx];
-        acc += tileMatWUnroll[ty][37] * tileMatXUnroll[37][tx];
-        acc += tileMatWUnroll[ty][38] * tileMatXUnroll[38][tx];
-        acc += tileMatWUnroll[ty][39] * tileMatXUnroll[39][tx];
-        acc += tileMatWUnroll[ty][40] * tileMatXUnroll[40][tx];
-        acc += tileMatWUnroll[ty][41] * tileMatXUnroll[41][tx];
-        acc += tileMatWUnroll[ty][42] * tileMatXUnroll[42][tx];
-        acc += tileMatWUnroll[ty][43] * tileMatXUnroll[43][tx];
-        acc += tileMatWUnroll[ty][44] * tileMatXUnroll[44][tx];
-        acc += tileMatWUnroll[ty][45] * tileMatXUnroll[45][tx];
-        acc += tileMatWUnroll[ty][46] * tileMatXUnroll[46][tx];
-        acc += tileMatWUnroll[ty][47] * tileMatXUnroll[47][tx];
-        acc += tileMatWUnroll[ty][48] * tileMatXUnroll[48][tx];
-        acc += tileMatWUnroll[ty][49] * tileMatXUnroll[49][tx];
-        acc += tileMatWUnroll[ty][50] * tileMatXUnroll[50][tx];
-        acc += tileMatWUnroll[ty][51] * tileMatXUnroll[51][tx];
-        acc += tileMatWUnroll[ty][52] * tileMatXUnroll[52][tx];
-        acc += tileMatWUnroll[ty][53] * tileMatXUnroll[53][tx];
-        acc += tileMatWUnroll[ty][54] * tileMatXUnroll[54][tx];
-        acc += tileMatWUnroll[ty][55] * tileMatXUnroll[55][tx];
-        acc += tileMatWUnroll[ty][56] * tileMatXUnroll[56][tx];
-        acc += tileMatWUnroll[ty][57] * tileMatXUnroll[57][tx];
-        acc += tileMatWUnroll[ty][58] * tileMatXUnroll[58][tx];
-        acc += tileMatWUnroll[ty][59] * tileMatXUnroll[59][tx];
-        acc += tileMatWUnroll[ty][60] * tileMatXUnroll[60][tx];
-        acc += tileMatWUnroll[ty][61] * tileMatXUnroll[61][tx];
-        acc += tileMatWUnroll[ty][62] * tileMatXUnroll[62][tx];
-        acc += tileMatWUnroll[ty][63] * tileMatXUnroll[63][tx];
-        
         __syncthreads();
 
-        int Y_b = bz;
-        int Y_m = row;
-        int Y_h = col / W_out;
-        int Y_w = col % W_out;
-        if (row < M && col < outCol)
+        for (int j = 0; j < 4; j++)
         {
-            y4d(Y_b, Y_m, Y_h, Y_w) = acc;
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][0] * tileMatXUnroll[0][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][1] * tileMatXUnroll[1][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][2] * tileMatXUnroll[2][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][3] * tileMatXUnroll[3][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][4] * tileMatXUnroll[4][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][5] * tileMatXUnroll[5][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][6] * tileMatXUnroll[6][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][7] * tileMatXUnroll[7][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][8] * tileMatXUnroll[8][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][9] * tileMatXUnroll[9][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][10] * tileMatXUnroll[10][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][11] * tileMatXUnroll[11][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][12] * tileMatXUnroll[12][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][13] * tileMatXUnroll[13][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][14] * tileMatXUnroll[14][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][15] * tileMatXUnroll[15][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][16] * tileMatXUnroll[16][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][17] * tileMatXUnroll[17][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][18] * tileMatXUnroll[18][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][19] * tileMatXUnroll[19][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][20] * tileMatXUnroll[20][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][21] * tileMatXUnroll[21][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][22] * tileMatXUnroll[22][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][23] * tileMatXUnroll[23][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][24] * tileMatXUnroll[24][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][25] * tileMatXUnroll[25][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][26] * tileMatXUnroll[26][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][27] * tileMatXUnroll[27][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][28] * tileMatXUnroll[28][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][29] * tileMatXUnroll[29][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][30] * tileMatXUnroll[30][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][31] * tileMatXUnroll[31][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][32] * tileMatXUnroll[32][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][33] * tileMatXUnroll[33][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][34] * tileMatXUnroll[34][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][35] * tileMatXUnroll[35][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][36] * tileMatXUnroll[36][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][37] * tileMatXUnroll[37][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][38] * tileMatXUnroll[38][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][39] * tileMatXUnroll[39][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][40] * tileMatXUnroll[40][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][41] * tileMatXUnroll[41][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][42] * tileMatXUnroll[42][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][43] * tileMatXUnroll[43][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][44] * tileMatXUnroll[44][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][45] * tileMatXUnroll[45][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][46] * tileMatXUnroll[46][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][47] * tileMatXUnroll[47][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][48] * tileMatXUnroll[48][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][49] * tileMatXUnroll[49][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][50] * tileMatXUnroll[50][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][51] * tileMatXUnroll[51][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][52] * tileMatXUnroll[52][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][53] * tileMatXUnroll[53][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][54] * tileMatXUnroll[54][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][55] * tileMatXUnroll[55][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][56] * tileMatXUnroll[56][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][57] * tileMatXUnroll[57][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][58] * tileMatXUnroll[58][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][59] * tileMatXUnroll[59][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][60] * tileMatXUnroll[60][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][61] * tileMatXUnroll[61][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][62] * tileMatXUnroll[62][tx + incre_col[j]];
+            acc[j] += tileMatWUnroll[ty + incre_row[j]][63] * tileMatXUnroll[63][tx + incre_col[j]];
+        }
+        __syncthreads();
+
+        for (int j = 0; j < 4; j++)
+        {
+            int Y_b = bz;
+            int Y_m = (row+incre_col[j]);
+            int Y_h = (col+incre_row[j]) / W_out;
+            int Y_w = (col+incre_row[j]) % W_out;
+            if ((row+incre_col[j]) < M && (col+incre_row[j]) < outCol)
+            {
+                y4d(Y_b, Y_m, Y_h, Y_w) = acc[j];
+            }
         }
     }
 
@@ -195,10 +199,10 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     dim3 gridDim(ceil(H_out * W_out / (1.0 * TILE_WIDTH)),
                  ceil(M / (1.0 * TILE_WIDTH)),
                  B);
-    dim3 blockDim(BLOCK_WIDTH,BLOCKs_WIDTH,1);
+    dim3 blockDim(BLOCK_WIDTH, BLOCK_WIDTH, 1);
 
     // Call the kernel
-    forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,w.dptr_,B,M,C,H,W,K);
+    forward_kernel<<<gridDim, blockDim>>>(y.dptr_, x.dptr_, w.dptr_, B, M, C, H, W, K);
 
     // Use MSHADOW_CUDA_CALL to check for CUDA runtime errors.
     MSHADOW_CUDA_CALL(cudaDeviceSynchronize());
@@ -211,9 +215,9 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
 template <typename gpu, typename DType>
 void forward(mshadow::Tensor<gpu, 4, DType> &y, const mshadow::Tensor<gpu, 4, DType> &x, const mshadow::Tensor<gpu, 4, DType> &w)
 {
-    CHECK_EQ(0,1) << "Remove this line and replace it with your implementation.";
+    CHECK_EQ(0, 1) << "Remove this line and replace it with your implementation.";
 }
-}
-}
+} // namespace op
+} // namespace mxnet
 
 #endif
