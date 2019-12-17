@@ -113,20 +113,21 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     const int H = x.shape_[2];
     const int W = x.shape_[3];
     const int K = w.shape_[3];
-
-    // printf("B: %d\n", B);
-    // printf("M: %d\n", M);
-    // printf("C: %d\n", C);
-    // printf("H: %d\n", H);
-    // printf("W: %d\n", W);
-    // printf("K: %d\n", K);
+    /*
+    printf("B: %d\n", B);
+    printf("M: %d\n", M);
+    printf("C: %d\n", C);
+    printf("H: %d\n", H);
+    printf("W: %d\n", W);
+    printf("K: %d\n", K);
+    */
 
     // Set the kernel dimensions
     const int H_out = H - K + 1;
     const int W_out = W - K + 1;
     dim3 gridDim(ceil(H_out * W_out / (1.0 * TILE_WIDTH_N)),
-                   ceil(M / (1.0 * TILE_WIDTH_M)),
-                   B);
+                 ceil(M / (1.0 * TILE_WIDTH_M)),
+                 B);
     dim3 blockDim(TILE_WIDTH_M, 1, 1);
 
     // Call the kernel
