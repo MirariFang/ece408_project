@@ -7,7 +7,7 @@ namespace mxnet
 {
 namespace op
 {
-const int TILE_WIDTH = 16;
+const int TILE_WIDTH = 32;
 
 __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ x, const float *__restrict__ k, const int B, const int M, const int C, const int H, const int W, const int K)
 {
@@ -24,7 +24,6 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
     int bz = blockIdx.z;
     int tx = threadIdx.x;
     int ty = threadIdx.y;
-    int tz = threadIdx.z;
     int col = bx * TILE_WIDTH + tx;
     int row = by * TILE_WIDTH + ty;
 
@@ -80,7 +79,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         }
 
         __syncthreads();
-
+        
         acc += tileMatWUnroll[ty][0] * tileMatXUnroll[0][tx];
         acc += tileMatWUnroll[ty][1] * tileMatXUnroll[1][tx];
         acc += tileMatWUnroll[ty][2] * tileMatXUnroll[2][tx];
@@ -97,6 +96,22 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         acc += tileMatWUnroll[ty][13] * tileMatXUnroll[13][tx];
         acc += tileMatWUnroll[ty][14] * tileMatXUnroll[14][tx];
         acc += tileMatWUnroll[ty][15] * tileMatXUnroll[15][tx];
+        acc += tileMatWUnroll[ty][16] * tileMatXUnroll[16][tx];
+        acc += tileMatWUnroll[ty][17] * tileMatXUnroll[17][tx];
+        acc += tileMatWUnroll[ty][18] * tileMatXUnroll[18][tx];
+        acc += tileMatWUnroll[ty][19] * tileMatXUnroll[19][tx];
+        acc += tileMatWUnroll[ty][20] * tileMatXUnroll[20][tx];
+        acc += tileMatWUnroll[ty][21] * tileMatXUnroll[21][tx];
+        acc += tileMatWUnroll[ty][22] * tileMatXUnroll[22][tx];
+        acc += tileMatWUnroll[ty][23] * tileMatXUnroll[23][tx];
+        acc += tileMatWUnroll[ty][24] * tileMatXUnroll[24][tx];
+        acc += tileMatWUnroll[ty][25] * tileMatXUnroll[25][tx];
+        acc += tileMatWUnroll[ty][26] * tileMatXUnroll[26][tx];
+        acc += tileMatWUnroll[ty][27] * tileMatXUnroll[27][tx];
+        acc += tileMatWUnroll[ty][28] * tileMatXUnroll[28][tx];
+        acc += tileMatWUnroll[ty][29] * tileMatXUnroll[29][tx];
+        acc += tileMatWUnroll[ty][30] * tileMatXUnroll[30][tx];
+        acc += tileMatWUnroll[ty][31] * tileMatXUnroll[31][tx];
         
         __syncthreads();
 
