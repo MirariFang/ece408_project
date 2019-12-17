@@ -7,7 +7,8 @@ namespace mxnet
 {
 namespace op
 {
-const int TILE_WIDTH = 32;
+const int TILE_WIDTH = 64;
+const int BLOCK_WIDTH = 32;
 
 __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ x, const float *__restrict__ k, const int B, const int M, const int C, const int H, const int W, const int K)
 {
@@ -49,8 +50,6 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
     {
         int tempCol = i * TILE_WIDTH + tx;
         int tempRow = i * TILE_WIDTH + ty;
-        tileMatWUnroll[ty][tx] = 0;
-        tileMatXUnroll[ty][tx] = 0;
 
         int W_m = row;
         int W_c = tempCol / filterSize;
@@ -112,6 +111,38 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         acc += tileMatWUnroll[ty][29] * tileMatXUnroll[29][tx];
         acc += tileMatWUnroll[ty][30] * tileMatXUnroll[30][tx];
         acc += tileMatWUnroll[ty][31] * tileMatXUnroll[31][tx];
+        acc += tileMatWUnroll[ty][32] * tileMatXUnroll[32][tx];
+        acc += tileMatWUnroll[ty][33] * tileMatXUnroll[33][tx];
+        acc += tileMatWUnroll[ty][34] * tileMatXUnroll[34][tx];
+        acc += tileMatWUnroll[ty][35] * tileMatXUnroll[35][tx];
+        acc += tileMatWUnroll[ty][36] * tileMatXUnroll[36][tx];
+        acc += tileMatWUnroll[ty][37] * tileMatXUnroll[37][tx];
+        acc += tileMatWUnroll[ty][38] * tileMatXUnroll[38][tx];
+        acc += tileMatWUnroll[ty][39] * tileMatXUnroll[39][tx];
+        acc += tileMatWUnroll[ty][40] * tileMatXUnroll[40][tx];
+        acc += tileMatWUnroll[ty][41] * tileMatXUnroll[41][tx];
+        acc += tileMatWUnroll[ty][42] * tileMatXUnroll[42][tx];
+        acc += tileMatWUnroll[ty][43] * tileMatXUnroll[43][tx];
+        acc += tileMatWUnroll[ty][44] * tileMatXUnroll[44][tx];
+        acc += tileMatWUnroll[ty][45] * tileMatXUnroll[45][tx];
+        acc += tileMatWUnroll[ty][46] * tileMatXUnroll[46][tx];
+        acc += tileMatWUnroll[ty][47] * tileMatXUnroll[47][tx];
+        acc += tileMatWUnroll[ty][48] * tileMatXUnroll[48][tx];
+        acc += tileMatWUnroll[ty][49] * tileMatXUnroll[49][tx];
+        acc += tileMatWUnroll[ty][50] * tileMatXUnroll[50][tx];
+        acc += tileMatWUnroll[ty][51] * tileMatXUnroll[51][tx];
+        acc += tileMatWUnroll[ty][52] * tileMatXUnroll[52][tx];
+        acc += tileMatWUnroll[ty][53] * tileMatXUnroll[53][tx];
+        acc += tileMatWUnroll[ty][54] * tileMatXUnroll[54][tx];
+        acc += tileMatWUnroll[ty][55] * tileMatXUnroll[55][tx];
+        acc += tileMatWUnroll[ty][56] * tileMatXUnroll[56][tx];
+        acc += tileMatWUnroll[ty][57] * tileMatXUnroll[57][tx];
+        acc += tileMatWUnroll[ty][58] * tileMatXUnroll[58][tx];
+        acc += tileMatWUnroll[ty][59] * tileMatXUnroll[59][tx];
+        acc += tileMatWUnroll[ty][60] * tileMatXUnroll[60][tx];
+        acc += tileMatWUnroll[ty][61] * tileMatXUnroll[61][tx];
+        acc += tileMatWUnroll[ty][62] * tileMatXUnroll[62][tx];
+        acc += tileMatWUnroll[ty][63] * tileMatXUnroll[63][tx];
         
         __syncthreads();
 
@@ -164,7 +195,7 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     dim3 gridDim(ceil(H_out * W_out / (1.0 * TILE_WIDTH)),
                  ceil(M / (1.0 * TILE_WIDTH)),
                  B);
-    dim3 blockDim(TILE_WIDTH,TILE_WIDTH,1);
+    dim3 blockDim(BLOCK_WIDTH,BLOCKs_WIDTH,1);
 
     // Call the kernel
     forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,w.dptr_,B,M,C,H,W,K);
