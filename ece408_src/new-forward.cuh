@@ -85,10 +85,6 @@ __global__ void forward_kernel_1(float *__restrict__ y, const float *__restrict_
         __syncthreads();
     }
 
-#undef y4d
-#undef x4d
-#undef k4d
-
     int Y_b = bz;
     int Y_m = row;
     int Y_h = col / W_out;
@@ -97,6 +93,9 @@ __global__ void forward_kernel_1(float *__restrict__ y, const float *__restrict_
     {
         y4d(Y_b, Y_m, Y_h, Y_w) = acc;
     }
+#undef y4d
+#undef x4d
+#undef k4d
 }
 
 const int TILE_WIDTH_M = 32;
