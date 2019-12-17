@@ -83,20 +83,20 @@ __global__ void forward_kernel_1(float *__restrict__ y, const float *__restrict_
         acc += tileMatWUnroll[ty][15] * tileMatXUnroll[15][tx];
 
         __syncthreads();
-
-        int Y_b = bz;
-        int Y_m = row;
-        int Y_h = col / W_out;
-        int Y_w = col % W_out;
-        if (row < M && col < outCol)
-        {
-            y4d(Y_b, Y_m, Y_h, Y_w) = acc;
-        }
     }
 
 #undef y4d
 #undef x4d
 #undef k4d
+
+    int Y_b = bz;
+    int Y_m = row;
+    int Y_h = col / W_out;
+    int Y_w = col % W_out;
+    if (row < M && col < outCol)
+    {
+        y4d(Y_b, Y_m, Y_h, Y_w) = acc;
+    }
 }
 
 const int TILE_WIDTH_M = 32;
@@ -157,7 +157,6 @@ __global__ void forward_kernel_2(float *__restrict__ y, const float *__restrict_
 
         __syncthreads();
 
-        
         for (int j = 0; j < TILE_WIDTH_N; j++)
         {
             /*Number of steps */
