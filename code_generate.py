@@ -1,10 +1,7 @@
 code = """
-    if (c >= currM && c < nextM && (h + {}) >= currH && (h + {}) < nextH && (w + {}) >= currW && (w + {}) < nextW)
-        y[bmhw] += subTile[c - currM][t2 + {}][t3 + {}] * K4d(m, c, {}, {});
-    else
-        y[bmhw] += x4d(b, c, (h + {}), (w + {})) * K4d(m, c, {}, {});
+    acc += tileMatWUnroll[ty][{}] * tileMatXUnroll[{}][tx];
+    __syncthreads();
 """
-
-for i in range(5):
-    for j in range(5):
-        print(code.format(i, i, j, j, i, j, i, j, i, j, i ,j), end='')
+TILE_WIDTH = 16
+for i in range(TILE_WIDTH):
+    print(code.format(i, i), end='')
