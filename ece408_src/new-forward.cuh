@@ -49,19 +49,11 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
     {
         int tempCol = i * TILE_WIDTH + tx;
         int tempRow = i * TILE_WIDTH + ty;
-        tileMatWUnroll[ty][tx] = 0;
-        tileMatXUnroll[ty][tx] = 0;
 
         int W_m = row;
         int W_c = tempCol / filterSize;
         int W_h = (tempCol % filterSize) / K;
         int W_w = (tempCol % filterSize) % K;
-
-        if (tempCol < weightLength && row < M)
-            tileMatWUnroll[ty][tx] = k4d(W_m, W_c, W_h, W_w);
-        else
-            tileMatWUnroll[ty][tx] = 0;
-
         int X_b = bz;
         int X_c = tempRow / filterSize;
         int X_p = (tempRow % filterSize) / K;
@@ -69,14 +61,15 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         int X_h = col / W_out;
         int X_w = col % W_out;
 
-        if (tempRow < weightLength && col < outCol)
-        {
-            tileMatXUnroll[ty][tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
-        }
+
+        if (tempCol < weightLength && row < M)
+            tileMatWUnroll[ty][tx] = k4d(W_m, W_c, W_h, W_w);
         else
-        {
+            tileMatWUnroll[ty][tx] = 0;
+        if (tempRow < weightLength && col < outCol)
+            tileMatXUnroll[ty][tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
+        else
             tileMatXUnroll[ty][tx] = 0;
-        }
 
         __syncthreads();
         
