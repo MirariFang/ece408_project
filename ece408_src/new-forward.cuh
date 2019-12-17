@@ -7,17 +7,10 @@ namespace mxnet
 {
 namespace op
 {
-const int TILE_WIDTH = 32;
 
-__global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ x, const float *__restrict__ k, const int B, const int M, const int C, const int H, const int W, const int K)
+const int TILE_WIDTH = 16;
+__global__ void forward_kernel_1(float *__restrict__ y, const float *__restrict__ x, const float *__restrict__ k, const int B, const int M, const int C, const int H, const int W, const int K)
 {
-
-    /*
-    Modify this function to implement the forward pass described in Chapter 16.
-    We have added an additional dimension to the tensors to support an entire mini-batch
-    The goal here is to be correct AND fast.
-    We have some nice #defs for you below to simplify indexing. Feel free to use them, or create your own.
-    */
 
     int bx = blockIdx.x;
     int by = blockIdx.y;
@@ -61,7 +54,6 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         int X_h = col / W_out;
         int X_w = col % W_out;
 
-
         if (tempCol < weightLength && row < M)
             tileMatWUnroll[ty][tx] = k4d(W_m, W_c, W_h, W_w);
         else
@@ -72,7 +64,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
             tileMatXUnroll[ty][tx] = 0;
 
         __syncthreads();
-        
+
         acc += tileMatWUnroll[ty][0] * tileMatXUnroll[0][tx];
         acc += tileMatWUnroll[ty][1] * tileMatXUnroll[1][tx];
         acc += tileMatWUnroll[ty][2] * tileMatXUnroll[2][tx];
@@ -89,23 +81,7 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
         acc += tileMatWUnroll[ty][13] * tileMatXUnroll[13][tx];
         acc += tileMatWUnroll[ty][14] * tileMatXUnroll[14][tx];
         acc += tileMatWUnroll[ty][15] * tileMatXUnroll[15][tx];
-        acc += tileMatWUnroll[ty][16] * tileMatXUnroll[16][tx];
-        acc += tileMatWUnroll[ty][17] * tileMatXUnroll[17][tx];
-        acc += tileMatWUnroll[ty][18] * tileMatXUnroll[18][tx];
-        acc += tileMatWUnroll[ty][19] * tileMatXUnroll[19][tx];
-        acc += tileMatWUnroll[ty][20] * tileMatXUnroll[20][tx];
-        acc += tileMatWUnroll[ty][21] * tileMatXUnroll[21][tx];
-        acc += tileMatWUnroll[ty][22] * tileMatXUnroll[22][tx];
-        acc += tileMatWUnroll[ty][23] * tileMatXUnroll[23][tx];
-        acc += tileMatWUnroll[ty][24] * tileMatXUnroll[24][tx];
-        acc += tileMatWUnroll[ty][25] * tileMatXUnroll[25][tx];
-        acc += tileMatWUnroll[ty][26] * tileMatXUnroll[26][tx];
-        acc += tileMatWUnroll[ty][27] * tileMatXUnroll[27][tx];
-        acc += tileMatWUnroll[ty][28] * tileMatXUnroll[28][tx];
-        acc += tileMatWUnroll[ty][29] * tileMatXUnroll[29][tx];
-        acc += tileMatWUnroll[ty][30] * tileMatXUnroll[30][tx];
-        acc += tileMatWUnroll[ty][31] * tileMatXUnroll[31][tx];
-        
+
         __syncthreads();
 
         int Y_b = bz;
@@ -123,6 +99,92 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
 #undef k4d
 }
 
+const int TILE_WIDTH_M = 32;
+const int TILE_WIDTH_N = 16;
+const int STEPS = TILE_WIDTH_M / TILE_WIDTH_N;
+__global__ void forward_kernel_2(float *__restrict__ y, const float *__restrict__ x, const float *__restrict__ k, const int B, const int M, const int C, const int H, const int W, const int K)
+{
+
+    int bx = blockIdx.x;
+    int by = blockIdx.y;
+    int bz = blockIdx.z;
+    int tx = threadIdx.x;
+    int row = by * TILE_WIDTH_M + tx;
+    const int filterSize = 25; // K * K = 25 (constant)
+    int weightLength = C * filterSize;
+    int numIter = ceil(weightLength / (1.0 * STEPS));
+    const int H_out = H - K + 1;
+    const int W_out = W - K + 1;
+    const int outCol = H_out * W_out;
+
+#define y4d(i3, i2, i1, i0) y[(i3) * (M * outCol) + (i2) * (outCol) + (i1) * (W_out) + i0]
+#define x4d(i3, i2, i1, i0) x[(i3) * (C * H * W) + (i2) * (H * W) + (i1) * (W) + i0]
+#define k4d(i3, i2, i1, i0) k[(i3) * (C * filterSize) + (i2) * (filterSize) + (i1) * (K) + i0]
+
+    float tileMatWUnroll[STEPS] = {};
+    float acc[TILE_WIDTH_N] = {};
+    __shared__ float tileMatXUnroll[STEPS][TILE_WIDTH_N];
+
+    for (int i = 0; i < numIter; i++)
+    {
+        for (int j = 0; j < STEPS; j++)
+        {
+            int tempCol = i * STEPS + j;
+            int W_m = row;
+            int W_c = tempCol / filterSize;
+            int W_h = (tempCol % filterSize) / K;
+            int W_w = (tempCol % filterSize) % K;
+            if (tempCol < weightLength && row < M)
+                tileMatWUnroll[j] = k4d(W_m, W_c, W_h, W_w);
+            else
+                tileMatWUnroll[j] = 0;
+        }
+
+        int load_ty = tx / TILE_WIDTH_N;
+        int load_tx = tx % TILE_WIDTH_N;
+        int col = bx * TILE_WIDTH_N + load_tx;
+        int tempRow = i * STEPS + load_ty;
+        int X_b = bz;
+        int X_c = tempRow / filterSize;
+        int X_p = (tempRow % filterSize) / K;
+        int X_q = (tempRow % filterSize) % K;
+        int X_h = col / W_out;
+        int X_w = col % W_out;
+        if (tempRow < weightLength && col < outCol)
+            tileMatXUnroll[load_ty][load_tx] = x4d(X_b, X_c, (X_h + X_p), (X_w + X_q));
+        else
+            tileMatXUnroll[load_ty][load_tx] = 0;
+
+        __syncthreads();
+
+        
+        for (int j = 0; j < TILE_WIDTH_N; j++)
+        {
+            /*Number of steps */
+            acc[j] += tileMatWUnroll[0] * tileMatXUnroll[0][j];
+            acc[j] += tileMatWUnroll[1] * tileMatXUnroll[1][j];
+        }
+        __syncthreads();
+    }
+
+    for (int j = 0; j < TILE_WIDTH_N; j++)
+    {
+        int col = bx * TILE_WIDTH_N + j;
+        int Y_b = bz;
+        int Y_m = row;
+        int Y_h = col / W_out;
+        int Y_w = col % W_out;
+        if (row < M && col < outCol)
+        {
+            y4d(Y_b, Y_m, Y_h, Y_w) = acc[j];
+        }
+    }
+
+#undef y4d
+#undef x4d
+#undef k4d
+}
+
 /* 
    This function is called by new-inl.h
    Any code you write should be executed by this function.
@@ -131,11 +193,6 @@ __global__ void forward_kernel(float *__restrict__ y, const float *__restrict__ 
 template <>
 void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tensor<gpu, 4, float> &x, const mshadow::Tensor<gpu, 4, float> &w)
 {
-
-    // Use mxnet's CHECK_EQ to do assertions.
-    // Remove this assertion when you do your implementation!
-    // CHECK_EQ(0, 1) << "Remove this line and replace with your implementation";
-
     // Extract the tensor dimensions into B,M,C,H,W,K
     const int B = x.shape_[0];
     const int M = y.shape_[1];
@@ -143,24 +200,35 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
     const int H = x.shape_[2];
     const int W = x.shape_[3];
     const int K = w.shape_[3];
-
-    // printf("B: %d\n", B);
-    // printf("M: %d\n", M);
-    // printf("C: %d\n", C);
-    // printf("H: %d\n", H);
-    // printf("W: %d\n", W);
-    // printf("K: %d\n", K);
-
+    /*
+    printf("B: %d\n", B);
+    printf("M: %d\n", M);
+    printf("C: %d\n", C);
+    printf("H: %d\n", H);
+    printf("W: %d\n", W);
+    printf("K: %d\n", K);
+    */
     // Set the kernel dimensions
     const int H_out = H - K + 1;
     const int W_out = W - K + 1;
-    dim3 gridDim(ceil(H_out * W_out / (1.0 * TILE_WIDTH)),
-                 ceil(M / (1.0 * TILE_WIDTH)),
-                 B);
-    dim3 blockDim(TILE_WIDTH,TILE_WIDTH,1);
+    if (M < 13)
+    {
+        dim3 gridDim_1(ceil(H_out * W_out / (1.0 * TILE_WIDTH)),
+                       ceil(M / (1.0 * TILE_WIDTH)),
+                       B);
+        dim3 blockDim_1(TILE_WIDTH, TILE_WIDTH, 1);
+        forward_kernel_1<<<gridDim_1, blockDim_1>>>(y.dptr_, x.dptr_, w.dptr_, B, M, C, H, W, K);
+    }
+    else
+    {
+        dim3 gridDim_2(ceil(H_out * W_out / (1.0 * TILE_WIDTH_N)),
+                       ceil(M / (1.0 * TILE_WIDTH_M)),
+                       B);
+        dim3 blockDim_2(TILE_WIDTH_M, 1, 1);
 
-    // Call the kernel
-    forward_kernel<<<gridDim, blockDim>>>(y.dptr_,x.dptr_,w.dptr_,B,M,C,H,W,K);
+        // Call the kernel
+        forward_kernel_2<<<gridDim_2, blockDim_2>>>(y.dptr_, x.dptr_, w.dptr_, B, M, C, H, W, K);
+    }
 
     // Use MSHADOW_CUDA_CALL to check for CUDA runtime errors.
     MSHADOW_CUDA_CALL(cudaDeviceSynchronize());
@@ -173,9 +241,9 @@ void forward<gpu, float>(mshadow::Tensor<gpu, 4, float> &y, const mshadow::Tenso
 template <typename gpu, typename DType>
 void forward(mshadow::Tensor<gpu, 4, DType> &y, const mshadow::Tensor<gpu, 4, DType> &x, const mshadow::Tensor<gpu, 4, DType> &w)
 {
-    CHECK_EQ(0,1) << "Remove this line and replace it with your implementation.";
+    CHECK_EQ(0, 1) << "Remove this line and replace it with your implementation.";
 }
-}
-}
+} // namespace op
+} // namespace mxnet
 
 #endif
